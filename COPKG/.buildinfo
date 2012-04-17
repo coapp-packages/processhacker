@@ -1,0 +1,156 @@
+/* target information */
+@import "version.inc";
+
+#product-info  {
+	product-name: "processhacker";
+	version: "${package-version}";
+	original-source-location: "http://sourceforge.net/projects/processhacker/files/processhacker2/processhacker-2.27-src.zip/download";
+	original-source-website: "http://processhacker.sourceforge.net/";
+	license: "gpl";
+	packager: "garrett serack <garretts@microsoft.com>";
+}
+
+test {
+	uses : release;
+	
+	build-command : @"
+        for %%d in (${ALL_COMPILERS}) do (
+            ptk --nologo --flavor=%%d test-loop
+        )
+	";
+}
+
+package {
+    uses : sign;
+    
+    targets: { 
+    };
+    
+    build-command : @"
+    ";
+}
+
+update-version {
+    
+    build-command : @"
+        REM auto-increment version.inc file...
+        
+        cd COPKG
+        setlocal EnableDelayedExpansion
+        for /F ""tokens=4,5,6,7  delims=.; "" %%v in (version.inc) do (
+            set /a build=%%y + 1
+            set VERSTRING=#define { package-version: %%v.%%w.%%x.!build!; }
+        )
+        echo !VERSTRING! > version.inc
+    ";
+}
+
+sign {
+    uses : release;
+
+    build-command : @"
+        simplesigner --sign KProcessHacker\bin\amd64\kprocesshacker.sys || goto failed 
+        simplesigner --sign KProcessHacker\bin\i386\kprocesshacker.sys || goto failed 
+    ";
+}
+
+release {
+    set : {
+        configuration="release";
+    };
+    uses : {
+        x86 , x64
+    };
+}
+
+debug {
+    set : {
+        configuration="debug";
+    };
+
+    uses : {
+        x86 , x64
+    };
+}
+
+
+x86 {   
+    set: { 
+        platform="x86";
+        output_platform="i386";
+    };
+    uses: {
+        driver
+    };
+};
+
+x64 {
+    set: { 
+        platform="x64";
+        output_platform="amd64";
+    };
+
+    uses: {
+        driver
+    };
+
+    build-command:@"
+    ";
+
+    clean-command:@"
+    ";
+};
+
+application {
+    compiler:"vc10";
+    sdk:"sdk7.1";
+    platform:"${platform}";
+
+    build-command: @"
+        MSBuild processhacker.sln /p:Configuration=${configuration}
+    ";
+}
+
+driver {
+    sdk:"wdk";
+    platform:"${platform}";
+    
+    build-command : @"
+    cd KProcessHacker
+    build
+    ";
+    
+    targets : {
+        @"KProcessHacker\bin\${output_platform}\kprocesshacker.sys"
+    };
+}
+
+//  C:\WinDDK\7600.16385.1\bin\setenv.bat C:\WinDDK\7600.16385.1\ fre x86 WXP
+// "setenv <directory> [fre|chk] [64|x64] [WIN7|WLH|WXP|WNET] [bscmake] [no_oacr] [separate_object_root]"
+plugins {
+    uses : sdk;
+}
+
+sdk { 
+    
+}
+
+clean { 
+    default : true;
+    clean-command:@"
+    echo Cleaning...
+        rmdir /s /q ProcessHacker\obj\ > nul 2> nul
+        rmdir /s /q bin\ > nul 2> nul
+        rmdir /s /q phlib\bin\ > nul 2> nul
+        rmdir /s /q phlib\obj\ > nul 2> nul
+        rmdir /s /q tests\phlib-test\bin\ > nul 2> nul
+        rmdir /s /q tests\phlib-test\obj\ > nul 2> nul
+        rmdir /s /q tools\fiin\bin\ > nul 2> nul
+        rmdir /s /q tools\fiin\obj\ > nul 2> nul
+        rmdir /s /q tools\peview\obj\ > nul 2> nul
+        rmdir /s /q KProcessHacker\clean\.obj > nul 2> nul
+        erase KProcessHacker\bin\i386\kprocesshacker.* > nul 2> nul
+        erase KProcessHacker\bin\amd64\kprocesshacker.* > nul 2> nul
+        erase KProcessHacker\build*.log > nul 2> nul
+    ";
+}
