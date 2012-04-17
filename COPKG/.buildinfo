@@ -10,23 +10,16 @@
 	packager: "garrett serack <garretts@microsoft.com>";
 }
 
-test {
-	uses : release;
-	
-	build-command : @"
-        for %%d in (${ALL_COMPILERS}) do (
-            ptk --nologo --flavor=%%d test-loop
-        )
-	";
-}
-
 package {
-    uses : sign;
+    //uses : sign;
     
     targets: { 
     };
     
     build-command : @"
+        autopackage --arc=x86 --bit=32 --ddkarch=i386 COPKG\processhacker.autopkg
+        autopackage --arc=x64 --bit=64 --ddkarch=amd64 COPKG\processhacker.autopkg
+        ptk update-version
     ";
 }
 
@@ -49,8 +42,7 @@ sign {
     uses : release;
 
     build-command : @"
-        simplesigner --sign KProcessHacker\bin\amd64\kprocesshacker.sys || goto failed 
-        simplesigner --sign KProcessHacker\bin\i386\kprocesshacker.sys || goto failed 
+        simplesigner --sign KProcessHacker\bin\amd64\kprocesshacker.sys KProcessHacker\bin\i386\kprocesshacker.sys  bin\**.exe bin\**.dll || goto failed 
     ";
 }
 
@@ -76,22 +68,24 @@ debug {
 
 x86 {   
     set: { 
-        platform="x86";
+        platform="win32";
         output_platform="i386";
+        output_dir="${configuration}32";
     };
     uses: {
-        driver
+        driver, plugins
     };
 };
 
 x64 {
     set: { 
-        platform="x64";
+        platform="amd64";
         output_platform="amd64";
+        output_dir="${configuration}64";
     };
 
     uses: {
-        driver
+        driver, plugins
     };
 
     build-command:@"
@@ -101,23 +95,15 @@ x64 {
     ";
 };
 
-application {
-    compiler:"vc10";
-    sdk:"sdk7.1";
-    platform:"${platform}";
-
-    build-command: @"
-        MSBuild processhacker.sln /p:Configuration=${configuration}
-    ";
-}
-
 driver {
     sdk:"wdk";
     platform:"${platform}";
-    
+    wdk : { 
+        target="2003";
+    };
     build-command : @"
     cd KProcessHacker
-    build
+    build || goto failed
     ";
     
     targets : {
@@ -125,15 +111,58 @@ driver {
     };
 }
 
-//  C:\WinDDK\7600.16385.1\bin\setenv.bat C:\WinDDK\7600.16385.1\ fre x86 WXP
-// "setenv <directory> [fre|chk] [64|x64] [WIN7|WLH|WXP|WNET] [bscmake] [no_oacr] [separate_object_root]"
 plugins {
-    uses : sdk;
+    uses:sdk;
+
+    compiler:"vc10";
+    sdk:"sdk7.1";
+    platform:"${platform}";
+    
+    build-command : @"
+        cd plugins
+        msbuild plugins.sln /p:Configuration=${configuration} || goto failed
+    ";
+    
+    targets : { 
+        @"bin\${output_dir}\plugins\DotNetTools.dll",
+        @"bin\${output_dir}\plugins\ExtendedNotifications.dll",
+        @"bin\${output_dir}\plugins\ExtendedServices.dll",
+        @"bin\${output_dir}\plugins\ExtendedTools.dll",
+        @"bin\${output_dir}\plugins\NetworkTools.dll",
+        @"bin\${output_dir}\plugins\OnlineChecks.dll",
+        @"bin\${output_dir}\plugins\SbieSupport.dll",
+        @"bin\${output_dir}\plugins\ToolStatus.dll",
+        @"bin\${output_dir}\plugins\Updater.dll",
+        @"bin\${output_dir}\plugins\UserNotes.dll",
+        @"bin\${output_dir}\plugins\WindowExplorer.dll",
+    };
 }
 
 sdk { 
+    uses: application;
     
+    build-command : @"
+    cd build\sdk\
+    call makesdk.cmd
+    ";
 }
+
+
+application {
+    compiler:"vc10";
+    sdk:"sdk7.1";
+    platform:"${platform}";
+
+    build-command: @"
+        MSBuild processhacker.sln /p:Configuration=${configuration} || goto failed
+    ";
+    
+    targets : { 
+        @"bin\${output_dir}\peview.exe",
+        @"bin\${output_dir}\ProcessHacker.exe"
+    };
+}
+
 
 clean { 
     default : true;
@@ -149,8 +178,24 @@ clean {
         rmdir /s /q tools\fiin\obj\ > nul 2> nul
         rmdir /s /q tools\peview\obj\ > nul 2> nul
         rmdir /s /q KProcessHacker\clean\.obj > nul 2> nul
+        rmdir /s /q sdk > nul 2> nul
+        rmdir /s /q plugins\DotNetTools\obj\  > nul 2> nul
+        rmdir /s /q plugins\ExtendedNotifications\obj\  > nul 2> nul
+        rmdir /s /q plugins\ExtendedServices\obj\  > nul 2> nul
+        rmdir /s /q plugins\ExtendedTools\obj\  > nul 2> nul
+        rmdir /s /q plugins\NetworkTools\obj\  > nul 2> nul
+        rmdir /s /q plugins\OnlineChecks\obj\  > nul 2> nul
+        rmdir /s /q plugins\SbieSupport\obj\  > nul 2> nul
+        rmdir /s /q plugins\ToolStatus\obj\  > nul 2> nul
+        rmdir /s /q plugins\Updater\obj\  > nul 2> nul 
+        rmdir /s /q plugins\UserNotes\obj\ > nul 2> nul  
+        rmdir /s /q plugins\WindowExplorer\obj\  > nul 2> nul
+        
         erase KProcessHacker\bin\i386\kprocesshacker.* > nul 2> nul
         erase KProcessHacker\bin\amd64\kprocesshacker.* > nul 2> nul
         erase KProcessHacker\build*.log > nul 2> nul
+        
+        
+        
     ";
 }

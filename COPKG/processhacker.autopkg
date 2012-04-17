@@ -1,0 +1,90 @@
+@import "version.inc";
+@import "outercurve.inc";
+
+
+#define { 
+    arch : "${arc??x86}";
+    bitness: "${bit??32}";
+    ddkplat: "${ddkarch??i386}";
+};
+
+package {
+    name: "processhacker";
+    version: "${package-version}";
+    arch : "${arch}";
+    
+    display-name: "Process Hacker";
+    location: "http://coapp.org/repository/${OutputFilename}";
+
+    feed: "http://coapp.org/repository/packages.atom.xml";
+};
+
+metadata {
+    summary: "ProcessHacker";
+    description: @"Process Hacker is a feature-packed tool for manipulating processes and services on your computer.
+Key features of Process Hacker:
+ - A simple, customizable tree view with highlighting showing you the processes running on your computer.
+ - Detailed system statistics with graphs.
+ - Advanced features not found in other programs, such as detaching from debuggers, viewing GDI handles, viewing heaps, injecting and unloading DLLs, and more.
+ - Powerful process termination that bypasses security software and rootkits.
+ - View, edit and control services, including those not shown by the Services console.
+ - View and close network connections."; // or path to a file...
+    
+    // icon: @"....png";
+    
+    author-version : "2.27";
+    bug-tracker: "http://processhacker.sourceforge.net/forums/";
+    stability : "0";
+    licenses : {
+        gpl
+    };
+}
+
+files[dlls] {
+    root: @"..\bin\release${bitness}";
+    
+    include: {
+        "**.dll",
+    };
+    
+    trim-path: minimal;
+    destination: "plugins";
+};
+
+files[exes] {
+    root: @"..\bin\release${bitness}";
+    
+    include: {
+        "**.exe",
+    };
+    
+    trim-path: minimal;
+   
+};
+
+
+files[driver] {
+    root: @"..\KProcessHacker\bin\${ddkplat}";
+    
+    include : "kprocesshacker.sys";
+    
+    trim-path: all;
+};
+
+application {
+    include : {
+        driver,dlls, exes
+    };
+    
+};
+
+package-composition {
+    symlinks : { 
+        exes => @"${bin}\${each.Name}" = @"${packagedir}\${each.Name}";
+    };
+    
+    shortcuts : { 
+        @"${apps}\start menu\Process Hacker\ProcessHacker.lnk" = @"${packagedir}\processhacker.exe";
+        @"${apps}\start menu\Process Hacker\peview.lnk" = @"${packagedir}\peview.exe";
+    };
+}
